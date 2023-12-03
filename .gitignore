@@ -129,3 +129,9 @@ dmypy.json
 .pyre/
 
 venv
+
+.idea
+
+test_datasets
+datasets
+table-transformer/model/pubtables1m_detection_detr_r18.pth
