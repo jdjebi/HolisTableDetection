@@ -1,4 +1,5 @@
 import os
+import shutil
 import string
 import uuid
 from pathlib import Path
@@ -26,3 +27,13 @@ def save_wth_dataframe(data: Any, save_path: Union[Path, str], encoding: str = "
 def generate_unique_id(size: int = 5):
     unique_id = str(uuid.uuid4())[:size]
     return unique_id
+
+
+def remove_dir_if_exists(path: Path):
+    if path.exists():
+        shutil.rmtree(path)
+
+
+def make_and_remove_dir_if_exists(path: Path):
+    remove_dir_if_exists(path)
+    makedirs(path)
