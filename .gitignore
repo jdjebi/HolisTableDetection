@@ -136,3 +136,4 @@ test_datasets
 datasets
 table_transformer/model/pubtables1m_detection_detr_r18.pth
 data
+table_transformer/model/TATR-v1.1-All-msft.pth
