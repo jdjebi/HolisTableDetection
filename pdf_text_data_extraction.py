@@ -10,38 +10,45 @@ script en extrayant uniquement les pages ayant un tableau scanné du dataset gé
 """
 
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Union
 
-from config.constants import DATASET_DIR, ENCODING, DATASET_SAVE_PATH
+import click
+
+from config.constants import ENCODING, CSV_DIR, PDF_RAW_TEXT_CSV_FILE
 from utils.extraction_toolkit import extract_pdf_data
 from utils.utils import get_pdf_files, makedirs, save_wth_dataframe
 
-""" Dossier des pdf """
 
-# Chemin vers le jeu de données
-SRC_PATH = r"C:\Users\jeanm\Downloads\DOC DATA CHALLENGE\DOC DATA CHELLENGE\SPARE_EXPLICATIONS"
-
-
-""" Dossier du dataset """
-
-makedirs(DATASET_DIR)
-
-
-def main(src_path):
-
-    print(f"PDF raw data Extraction starting from : {src_path}")
-
+def raw_text_extraction(dataset_dir: Union[str, Path], annotate: bool = False) -> List[Dict]:
     # Chemins
-    pdf_files: List[Path] = get_pdf_files(src_path)
+    pdf_files: List[Path] = get_pdf_files(dataset_dir)
 
     # Extraction de données
-    data: List[Dict] = extract_pdf_data(pdf_files)
+    data: List[Dict] = extract_pdf_data(pdf_files, annotate=annotate)
+
+    return data
+
+
+@click.command()
+@click.option("-d", "--dataset-dir", help="Chemin vers le dataset", required=True,
+              type=click.Path(exists=True, file_okay=False, resolve_path=True, path_type=Path))
+@click.option("-o", "--output-dir", help="Chemin vers le dossier de sortie", required=True,
+              type=click.Path(resolve_path=True, path_type=Path))
+def main(dataset_dir: Path, output_dir: Path):
+    # Chemin et dossier de sortie
+    makedirs(output_dir / CSV_DIR)
+    output_dir_csv = output_dir / CSV_DIR / PDF_RAW_TEXT_CSV_FILE
+
+    print(f"PDF raw data Extraction starting from : {dataset_dir}")
+
+    # Extraction des données textuelles des pdf
+    data: List[Dict] = raw_text_extraction(dataset_dir)
 
     # Sauvegarde des données
-    save_wth_dataframe(data, DATASET_SAVE_PATH, encoding=ENCODING)
+    save_wth_dataframe(data, output_dir_csv, encoding=ENCODING)
 
-    print(f"Extraction finished! Dataset save at : {DATASET_SAVE_PATH}")
+    print(f"Extraction finished! Dataset save at : {output_dir}")
 
 
 if __name__ == "__main__":
-    main(SRC_PATH)
+    main()

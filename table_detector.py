@@ -7,82 +7,118 @@ Une fois l'exécution terminée (donc les tableaux extraits). Les tableaux sont 
 """
 import os
 import shutil
+from pathlib import Path
+from typing import Union
 
+import click
 import pandas as pd
+from tqdm import tqdm
 
-from config.constants import INFERENCE_SCRIPT, SCAN_TABLES_IMAGES_DIR, DETECTION_CONFIG_PATH, MODEL_PATH, IMAGE_TABLE_DETECTED_DIR, \
-    SCAN_TABLE_PAGE_IMAGES_CSV, SCAN_TABLES_IMAGES_CSV, ENCODING
+from config.constants import INFERENCE_SCRIPT, SCAN_TABLES_IMAGES_DIR, DETECTION_CONFIG_PATH, MODEL_PATH, \
+    IMAGE_TABLE_DETECTED_DIR, \
+    SCAN_TABLE_PAGE_IMAGES_CSV, SCAN_TABLES_IMAGES_CSV, ENCODING, __SCAN_TABLES_PAGE_IMAGES_DIR, \
+    __IMAGE_TABLE_DETECTED_DIR, \
+    CSV_DIR, __SCAN_TABLES_PAGE_IMAGES_CSV, __SCAN_TABLES_IMAGES_CSV
 from utils.ocr import apply_ocr
-from utils.utils import makedirs, save_wth_dataframe
-
-command_parts = {
-    "python": str(INFERENCE_SCRIPT),
-    "--image_dir": str(SCAN_TABLES_IMAGES_DIR),
-    "--out_dir": str(IMAGE_TABLE_DETECTED_DIR),
-    "--mode": "detect",
-    "--detection_config_path": str(DETECTION_CONFIG_PATH),
-    "--detection_device": "cpu",
-    "--structure_device": "cpu",
-    "--detection_model_path": str(MODEL_PATH),
-    "--crops": "",
-    "--crop_padding": 5,
-    "--visualize": ""
-}
+from utils.utils import makedirs, save_wth_dataframe, make_and_remove_dir_if_exists
 
 
-def main():
-
-    """ Détection des tableaux dans les pages scannées """
-
-    # On supprime le dossier de sortie s'il existe pour ne pas mélanger les sorties
-    if IMAGE_TABLE_DETECTED_DIR.exists():
-        shutil.rmtree(IMAGE_TABLE_DETECTED_DIR)
-
-    makedirs(IMAGE_TABLE_DETECTED_DIR)
-
-    print(f"Detect table from images dataset : {SCAN_TABLES_IMAGES_DIR}")
+def table_detection(scan_dir: Union[str, Path], output_dir: Union[str, Path]):
+    command_parts = {
+        "python": str(INFERENCE_SCRIPT),
+        "--image_dir": str(scan_dir),
+        "--out_dir": str(output_dir),
+        "--mode": "detect",
+        "--detection_config_path": str(DETECTION_CONFIG_PATH),
+        "--detection_device": "cpu",
+        "--structure_device": "cpu",
+        "--detection_model_path": str(MODEL_PATH),
+        "--cells": "",
+        "--html": "",
+        "--csv": "",
+        "--visualize": "",
+        "--verbose": "",
+        "--crops": "",
+        "--crop_padding": 5,
+    }
 
     # Construction de la commande pour détecter les tableaux
     cmd_parts = " ".join([f"{action} {value}" for action, value in command_parts.items()])
     os.system(cmd_parts)
 
-    print(f"Detection finished! Result saved in : {IMAGE_TABLE_DETECTED_DIR}")
+
+def merge_pdf_table_images(df_scan_table_pages: pd.DataFrame, image_table_detected: Union[str, Path]) -> pd.DataFrame:
+    # Récupération des id de page scanné et du chemin des images des tableaux
+    id_im_table_path = []
+
+    images_list = list(image_table_detected.glob("*.jpg"))
+
+    with tqdm(total=len(images_list), desc="OCR", unit="image") as progress_bar:
+        for path in images_list:
+            # On récupère uniquement les .jpg
+
+            progress_bar.set_postfix({
+                "image": path.stem[:30]
+            })
+
+            filename = path.stem
+            doc_id, _ = filename.split("__")
+
+            text = apply_ocr(str(path))
+
+            id_im_table_path.append({
+                "doc_id": doc_id,
+                "im_table_path": str(path),
+                "text": text
+            })
+
+            progress_bar.update(1)
+
+    # Création d'un DataFrame des id de scan et des images des tableaux
+    df_images_table = pd.DataFrame(id_im_table_path)
+
+    merged_df = pd.merge(df_scan_table_pages, df_images_table, on='doc_id', how="outer")
+
+    return merged_df
+
+
+@click.command()
+@click.option("-o", "--output-dir", help="Chemin vers le dossier de sortie", required=True,
+              type=click.Path(exists=True, file_okay=False, resolve_path=True, path_type=Path))
+def main(output_dir: Path):
+    """ Sortie """
+
+    # Vérification de la présence du dossier de l'extraction des images
+    scan_tables_page_images_dir = output_dir / __SCAN_TABLES_PAGE_IMAGES_DIR
+    scan_tables_page_images_csv = output_dir / CSV_DIR / __SCAN_TABLES_PAGE_IMAGES_CSV
+    scan_tables_images_csv = output_dir / CSV_DIR / __SCAN_TABLES_IMAGES_CSV
+    images_table_detected_dir = output_dir / __IMAGE_TABLE_DETECTED_DIR
+
+    # On supprime le dossier de sortie s'il existe pour ne pas mélanger les sorties
+    make_and_remove_dir_if_exists(images_table_detected_dir)
+
+    print(f"Detect table from images dataset : {scan_tables_page_images_dir}")
+
+    """ Détection des tableaux dans les pages scannées """
+
+    # Construction de la commande pour détecter les tableaux
+    table_detection(scan_tables_page_images_dir, images_table_detected_dir)
+
+    print(f"Detection finished! Result saved in : {images_table_detected_dir}")
 
     """ Fusion entre les pages scannées est les tableaux prédit """
 
     print("Correspondence between table images and PDF pages")
 
     # Dataframe des pages scannée
-    df_scan_table_pages = pd.read_csv(SCAN_TABLE_PAGE_IMAGES_CSV, sep=";", index_col=0)
+    df_scan_table_pages = pd.read_csv(scan_tables_page_images_csv, sep=";", index_col=0)
 
-    # Récupération des id de page scanné et du chemin des images des tableaux
-    id_im_table_path = []
-
-    for path in list(IMAGE_TABLE_DETECTED_DIR.glob("*")):
-
-        # On récupère uniquement les .jpg
-
-        if path.suffix != ".jpg":
-            continue
-
-        filename = path.stem
-        doc_id, _ = filename.split("__")
-
-        id_im_table_path.append({
-            "doc_id": doc_id,
-            "im_table_path": str(path),
-            "text": apply_ocr(str(path))
-        })
-
-    # Création d'un DataFrame des id de scan et des images des tableaux
-    df_images_table = pd.DataFrame(id_im_table_path)
-
-    merged_df = pd.merge(df_scan_table_pages, df_images_table, on='doc_id')
+    df_table_images = merge_pdf_table_images(df_scan_table_pages, images_table_detected_dir)
 
     # Sauvegarde de la correspondance
-    save_wth_dataframe(merged_df, SCAN_TABLES_IMAGES_CSV, encoding=ENCODING)
+    save_wth_dataframe(df_table_images, scan_tables_images_csv, encoding=ENCODING)
 
-    print(f"Merged scans and tables saved at : {SCAN_TABLES_IMAGES_CSV}")
+    print(f"Merged scans and tables saved at : {scan_tables_images_csv}")
 
 
 if __name__ == "__main__":
