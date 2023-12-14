@@ -17,7 +17,11 @@ def merge_raw_scan_table(df_raw_txt: pd.DataFrame, df_table_images: pd.DataFrame
     merged_df = pd.merge(df_raw_txt, df_table_images, on='doc_id', how='outer')
     merged_df["text"] = merged_df[['text_x', 'text_y']].agg(lambda x: ' '.join(x.dropna()), axis=1)
 
-    dataset = merged_df[["path", "page", "is_scan", "text"]]
+    cols = ["path", "page", "is_scan", "text"]
+    if "interest_table" in df_raw_txt.columns:
+        cols.append("interest_table")
+
+    dataset = merged_df[cols]
 
     return dataset
 
