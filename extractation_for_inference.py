@@ -17,7 +17,6 @@ from utils.ocr import apply_ocr
 from utils.utils import get_pdf_files, makedirs, save_wth_dataframe
 
 DOCUMENTS_PATH = r"C:\Users\jeanm\Downloads\DOC DATA CHALLENGE\DOC DATA CHELLENGE\SPARE_DOCUMENT"
-
 TEST_OUTPUT_DIR = r".\test_datasets2"
 TEST_OUTPUT_DIR = Path(TEST_OUTPUT_DIR).absolute().resolve()
 
@@ -60,7 +59,7 @@ def scan_page_extraction(df_raw_text_data: pd.DataFrame, scan_output_dir: Union[
                     page.delete_annot(annot)
 
                 # Sauvegarde de la page sous forme d'images
-                pix = page.get_pixmap()
+                pix = page.get_pixmap(dpi=300)
                 output_file = scan_output_dir / f"{doc_id}__{pdf_path.stem[:30]}-page-{num_page}.jpg"
                 pix.save(output_file)
 
@@ -90,9 +89,13 @@ def table_detection(scan_dir: Union[str, Path], output_dir: Union[str, Path]):
         "--detection_device": "cpu",
         "--structure_device": "cpu",
         "--detection_model_path": str(MODEL_PATH),
+        "--cells": "",
+        "--html": "",
+        "--csv": "",
+        "--visualize": "",
+        "--verbose": "",
         "--crops": "",
         "--crop_padding": 5,
-        "--visualize": ""
     }
 
     # Construction de la commande pour détecter les tableaux
