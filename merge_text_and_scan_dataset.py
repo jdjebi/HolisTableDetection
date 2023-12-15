@@ -1,13 +1,12 @@
 """
-Ce script est responsable de la fusion des datasets des tableaux natifs et des tableaux scanné
+Ce script est responsable de la fusion des datasets des tableaux natifs et des tableaux scannés
 """
 from pathlib import Path
 
 import click
 import pandas as pd
 
-from config.constants import RAW_TXT_CSV, SCAN_TABLES_IMAGES_CSV, ENCODING, DATASET_CSV, CSV_DIR, __DATASET_CSV, \
-    PDF_RAW_TEXT_CSV_FILE, __SCAN_TABLES_IMAGES_CSV
+from config.constants import ENCODING, PATH_TABLE_DETECTED_CSV_FILE, PATH_RAW_TEXT_CSV_FILE, PATH_DATASET_CSV_FILE
 from utils.utils import save_wth_dataframe
 
 
@@ -33,9 +32,9 @@ def main(output_dir: Path):
 
     """ Chemins """
 
-    raw_text_csv = output_dir / CSV_DIR / PDF_RAW_TEXT_CSV_FILE
-    scan_tables_images_csv = output_dir / CSV_DIR / __SCAN_TABLES_IMAGES_CSV
-    table_dataset_csv = output_dir / CSV_DIR / __DATASET_CSV
+    raw_text_csv = output_dir / PATH_RAW_TEXT_CSV_FILE
+    scan_tables_images_csv = output_dir / PATH_TABLE_DETECTED_CSV_FILE
+    table_dataset_csv = output_dir / PATH_DATASET_CSV_FILE
 
     print(f"Merge text dataset and scan dataset to create final dataset")
 

@@ -6,7 +6,6 @@ Une fois l'exécution terminée (donc les tableaux extraits). Les tableaux sont 
 à partir du fichier datasets/csv/scan_table_page_images.csv.
 """
 import os
-import shutil
 from pathlib import Path
 from typing import Union
 
@@ -14,13 +13,11 @@ import click
 import pandas as pd
 from tqdm import tqdm
 
-from config.constants import INFERENCE_SCRIPT, SCAN_TABLES_IMAGES_DIR, DETECTION_CONFIG_PATH, MODEL_PATH, \
-    IMAGE_TABLE_DETECTED_DIR, \
-    SCAN_TABLE_PAGE_IMAGES_CSV, SCAN_TABLES_IMAGES_CSV, ENCODING, __SCAN_TABLES_PAGE_IMAGES_DIR, \
-    __IMAGE_TABLE_DETECTED_DIR, \
-    CSV_DIR, __SCAN_TABLES_PAGE_IMAGES_CSV, __SCAN_TABLES_IMAGES_CSV
+from config.constants import INFERENCE_SCRIPT, DETECTION_CONFIG_PATH, MODEL_PATH, \
+    ENCODING, PATH_SCAN_DIR, PATH_SCAN_CSV_FILE, \
+    PATH_TABLE_DETECTED_DIR, PATH_TABLE_DETECTED_CSV_FILE
 from utils.ocr import apply_ocr
-from utils.utils import makedirs, save_wth_dataframe, make_and_remove_dir_if_exists
+from utils.utils import save_wth_dataframe, make_and_remove_dir_if_exists
 
 
 def table_detection(scan_dir: Union[str, Path], output_dir: Union[str, Path]):
@@ -89,10 +86,10 @@ def main(output_dir: Path):
     """ Sortie """
 
     # Vérification de la présence du dossier de l'extraction des images
-    scan_tables_page_images_dir = output_dir / __SCAN_TABLES_PAGE_IMAGES_DIR
-    scan_tables_page_images_csv = output_dir / CSV_DIR / __SCAN_TABLES_PAGE_IMAGES_CSV
-    scan_tables_images_csv = output_dir / CSV_DIR / __SCAN_TABLES_IMAGES_CSV
-    images_table_detected_dir = output_dir / __IMAGE_TABLE_DETECTED_DIR
+    scan_tables_page_images_dir = output_dir / PATH_SCAN_DIR
+    scan_tables_page_images_csv = output_dir / PATH_SCAN_CSV_FILE
+    scan_tables_images_csv = output_dir / PATH_TABLE_DETECTED_CSV_FILE
+    images_table_detected_dir = output_dir / PATH_TABLE_DETECTED_DIR
 
     # On supprime le dossier de sortie s'il existe pour ne pas mélanger les sorties
     make_and_remove_dir_if_exists(images_table_detected_dir)

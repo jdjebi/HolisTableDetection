@@ -14,35 +14,40 @@ from typing import List, Dict, Union
 
 import click
 
-from config.constants import ENCODING, CSV_DIR, PDF_RAW_TEXT_CSV_FILE
+from config.constants import ENCODING, CSV_DIR, PATH_RAW_TEXT_CSV_FILE
 from utils.extraction_toolkit import extract_pdf_data
 from utils.utils import get_pdf_files, makedirs, save_wth_dataframe
 
 
 def raw_text_extraction(dataset_dir: Union[str, Path], annotate: bool = False) -> List[Dict]:
-    # Chemins
+    # Chemins des PDF
     pdf_files: List[Path] = get_pdf_files(dataset_dir)
-
     # Extraction de données
     data: List[Dict] = extract_pdf_data(pdf_files, annotate=annotate)
-
     return data
 
 
 @click.command()
-@click.option("-d", "--dataset-dir", help="Chemin vers le dataset", required=True,
+@click.option("-d", "--dataset-dir",
+              help="Chemin vers le dataset",
+              required=True,
               type=click.Path(exists=True, file_okay=False, resolve_path=True, path_type=Path))
-@click.option("-o", "--output-dir", help="Chemin vers le dossier de sortie", required=True,
+@click.option("-o", "--output-dir",
+              help="Chemin vers le dossier de sortie", required=True,
               type=click.Path(resolve_path=True, path_type=Path))
-def main(dataset_dir: Path, output_dir: Path):
+@click.option("-a", "--annotate",
+              help="Indique si les données doivent être annotée",
+              is_flag=True, show_default=True,
+              default=False)
+def main(dataset_dir: Path, output_dir: Path, annotate: bool):
     # Chemin et dossier de sortie
     makedirs(output_dir / CSV_DIR)
-    output_dir_csv = output_dir / CSV_DIR / PDF_RAW_TEXT_CSV_FILE
+    output_dir_csv = output_dir / PATH_RAW_TEXT_CSV_FILE
 
     print(f"PDF raw data Extraction starting from : {dataset_dir}")
 
     # Extraction des données textuelles des pdf
-    data: List[Dict] = raw_text_extraction(dataset_dir)
+    data: List[Dict] = raw_text_extraction(dataset_dir, annotate)
 
     # Sauvegarde des données
     save_wth_dataframe(data, output_dir_csv, encoding=ENCODING)

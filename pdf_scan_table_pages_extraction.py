@@ -12,8 +12,8 @@ import pandas as pd
 from fitz import fitz
 from tqdm import tqdm
 
-from config.constants import CSV_DIR, \
-    PDF_RAW_TEXT_CSV_FILE, __SCAN_TABLES_PAGE_IMAGES_DIR, __SCAN_TABLES_PAGE_IMAGES_CSV, ENCODING
+from config.constants import PDF_RAW_TEXT_CSV_FILE, ENCODING, \
+    PATH_RAW_TEXT_CSV_FILE, PATH_SCAN_CSV_FILE, PATH_SCAN_DIR
 from utils.utils import make_and_remove_dir_if_exists, save_wth_dataframe
 
 
@@ -71,9 +71,9 @@ def scan_page_extraction(df_raw_text_data: pd.DataFrame, scan_output_dir: Union[
 def main(output_dir: Path):
     """ Dossier de sortie """
 
-    raw_text_csv = output_dir / CSV_DIR / PDF_RAW_TEXT_CSV_FILE
-    scan_tables_images_csv = output_dir / CSV_DIR / __SCAN_TABLES_PAGE_IMAGES_CSV
-    scan_tables_images_dir = output_dir / __SCAN_TABLES_PAGE_IMAGES_DIR
+    raw_text_csv = output_dir / PATH_RAW_TEXT_CSV_FILE
+    scan_tables_images_csv = output_dir / PATH_SCAN_CSV_FILE
+    scan_tables_images_dir = output_dir / PATH_SCAN_DIR
 
     # Vérifiez que le fichier csv de l'extraction des textes bruts des pdf existe
     if not raw_text_csv.exists():
