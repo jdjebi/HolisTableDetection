@@ -6,6 +6,7 @@ Une fois l'exécution terminée (donc les tableaux extraits). Les tableaux sont 
 à partir du fichier datasets/csv/scan_table_page_images.csv.
 """
 import os
+import sys
 from pathlib import Path
 from typing import Union
 
@@ -19,10 +20,13 @@ from config.constants import INFERENCE_SCRIPT, DETECTION_CONFIG_PATH, MODEL_PATH
 from utils.ocr import apply_ocr
 from utils.utils import save_wth_dataframe, make_and_remove_dir_if_exists
 
+# Chemin vers l'exécutable python en cours
+PYTHON_EXEC = sys.executable
+
 
 def table_detection(scan_dir: Union[str, Path], output_dir: Union[str, Path]):
     command_parts = {
-        "python": str(INFERENCE_SCRIPT),
+        PYTHON_EXEC: str(INFERENCE_SCRIPT),
         "--image_dir": str(scan_dir),
         "--out_dir": str(output_dir),
         "--mode": "detect",
