@@ -1,75 +1,58 @@
+"""
+Script réalisant la pipeline complète de l'extraction de données.
+"""
 from pathlib import Path
-from typing import Union
 
 import click
 
-from config.constants import ENCODING, CSV_DIR, PDF_RAW_TEXT_CSV_FILE, __DATASET_CSV, __SCAN_TABLES_IMAGES_CSV, \
-    __SCAN_TABLES_PAGE_IMAGES_DIR, __SCAN_TABLES_PAGE_IMAGES_CSV, __IMAGE_TABLE_DETECTED_DIR
-from merge_text_and_scan_dataset import merge_raw_scan_table
-from pdf_scan_table_pages_extraction import scan_page_extraction
-from pdf_text_data_extraction import raw_text_extraction
+from config.path_manager import PathManager
+from extract_pdf_scan import extract_scan_tables
+from extract_pdf_text import extract_raw_text
+from merge_text_scan_data import merge_raw_scan_table
 from table_detector import table_detection, merge_pdf_table_images
-from utils.utils import save_wth_dataframe, make_and_remove_dir_if_exists, makedirs
+from utils.utils import makedirs, save
 
 
-def extract_data(dataset_dir: Union[str, Path], output_dir: Union[str, Path], annotate: bool):
+def extract_data(dataset_dir: Path, output_dir: Path, annotate: bool):
     """ Chemins et dossier de sortie """
-    raw_text_csv = output_dir / CSV_DIR / PDF_RAW_TEXT_CSV_FILE
-    scan_pages_csv = output_dir / CSV_DIR / __SCAN_TABLES_PAGE_IMAGES_CSV
-    scan_tables_images_csv = output_dir / CSV_DIR / __SCAN_TABLES_IMAGES_CSV
-    table_dataset_csv = output_dir / CSV_DIR / __DATASET_CSV
-    csv_dir = output_dir / CSV_DIR
-    scan_dir = output_dir / __SCAN_TABLES_PAGE_IMAGES_DIR
-    table_detected_dir = output_dir / __IMAGE_TABLE_DETECTED_DIR
+
+    pathManager = PathManager(output_dir)
 
     print(f"Inférence sur le dataset {dataset_dir}")
 
-    """ Préparation """
+    """ Création des dossiers de sortie """
 
-    # Création du dossier de sortie
-    make_and_remove_dir_if_exists(output_dir)
-    makedirs(csv_dir)
-    makedirs(scan_dir)
-    makedirs(table_detected_dir)
+    makedirs(output_dir, remove_ok=True)
+    makedirs(pathManager.csv_dir)
+    makedirs(pathManager.scan_dir)
+    makedirs(pathManager.table_detected_dir)
 
     """ Extraction du texte """
 
     print("# Extraction du texte")
-    raw_text_data = raw_text_extraction(dataset_dir, annotate)
-
-    # Sauvegarde des données de l'extraction du texte des pdf
-    df_raw_text_data = save_wth_dataframe(raw_text_data, raw_text_csv, encoding=ENCODING)
+    raw_text = extract_raw_text(dataset_dir, annotate)
+    df_raw_text = save(raw_text, pathManager.raw_text_csv)
 
     """ Extraction des pages contenant un tableau scanné """
 
     print("# Extraction des pages contenant une image")
-    scan_pages = scan_page_extraction(df_raw_text_data, scan_dir)
-
-    # Sauvegarde des données du mapping (pdf, page, doc_id, scan_image_path)
-    df_scan_pages = save_wth_dataframe(scan_pages, scan_pages_csv, encoding=ENCODING)
+    scan_pages = extract_scan_tables(df_raw_text, pathManager.scan_dir)
+    df_scan_pages = save(scan_pages, pathManager.scan_pages_csv)
 
     """ Détection des tableaux dans la pages extraites """
 
     print("# Détection des tableaux")
-
-    # Détection des tableaux
-    table_detection(scan_dir, table_detected_dir)
-
-    """ Correspondance entre les tableaux détectés et les pdf """
+    table_detection(pathManager.scan_dir, pathManager.table_detected_dir)
 
     print("# Correspondance entre les tableaux détectés et les pdf")
-    df_table_images = merge_pdf_table_images(df_scan_pages, table_detected_dir)
-
-    # Sauvegarde de la correspondance
-    save_wth_dataframe(df_table_images, scan_tables_images_csv, encoding=ENCODING)
+    df_table_images = merge_pdf_table_images(df_scan_pages, pathManager.table_detected_dir)
+    save(df_table_images, pathManager.scan_tables_images_csv)
 
     """ Fusion des datasets de tableau brute et de tableau scanné """
 
     print("# Fusion des datasets de tableaux brutes et de tableaux scannés")
-    dataset = merge_raw_scan_table(df_raw_text_data, df_table_images)
-
-    # Sauvegarde de la correspondance
-    save_wth_dataframe(dataset, table_dataset_csv, encoding=ENCODING)
+    dataset = merge_raw_scan_table(df_raw_text, df_table_images)
+    save(dataset, pathManager.table_dataset_csv)
 
     """ Fin """
 

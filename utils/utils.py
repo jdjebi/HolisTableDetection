@@ -1,12 +1,12 @@
 import os
 import shutil
-import string
 import uuid
 from pathlib import Path
-import random
 from typing import Union, List, Any
 
 import pandas as pd
+
+from config.constants import ENCODING
 
 
 def get_pdf_files(dir_path: Union[Path, str]) -> List[Path]:
@@ -14,7 +14,9 @@ def get_pdf_files(dir_path: Union[Path, str]) -> List[Path]:
     return [Path(dir_path) / path for path in os.listdir(dir_path)]
 
 
-def makedirs(dir_path: Union[Path, str], exist_ok: bool = True):
+def makedirs(dir_path: Union[Path, str], remove_ok: bool = False, exist_ok: bool = True):
+    if remove_ok:
+        remove_dir_if_exists(dir_path)
     os.makedirs(dir_path, exist_ok=exist_ok)
 
 
@@ -22,6 +24,10 @@ def save_wth_dataframe(data: Any, save_path: Union[Path, str], encoding: str = "
     df = pd.DataFrame(data)
     df.to_csv(save_path, sep=sep, encoding=encoding)
     return df
+
+
+def save(data: Any, save_path: Path):
+    return save_wth_dataframe(data, save_path, encoding=ENCODING)
 
 
 def generate_unique_id(size: int = 5):

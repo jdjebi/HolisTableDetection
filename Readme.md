@@ -39,13 +39,13 @@ exécutée en une seule fois ([extract_for_inference.py](extractation_for_infere
 
 ##### 1. Extraction du texte des tables brutes et annotations automatiques des données
 
-Cette étape est réalisée par le script [pdf_text_data_extraction.py](pdf_text_data_extraction.py). Elle parcourt les pdf correspond
+Cette étape est réalisée par le script [pdf_text_data_extraction.py](extract_pdf_text.py). Elle parcourt les pdf correspond
 au dossier spécifié dans la variable SRC_PATH du script et extrait le texte brute des tableaux annotés.
 L'ensemble de données est ajouté dans un fichier [datasets/csv/pdf_raw_text.csv](datasets%2Fcsv%2Fpdf_raw_text.csv)
 
 ##### 2. Extraction des images des tableaux scannés
 
-Réalisée par [pdf_scan_table_pages_extraction.py](pdf_scan_table_pages_extraction.py), cette étape permet d'extraire sous
+Réalisée par [pdf_scan_table_pages_extraction.py](extract_pdf_scan.py), cette étape permet d'extraire sous
 forme d'images les pages contenant des tableaux scannés. Il récupère les pages concernées dans le fichier [datasets/csv/pdf_raw_text.csv](datasets%2Fcsv%2Fpdf_raw_text.csv),
 puis sélection les pages ayant été marquées comme scanne. 
 
