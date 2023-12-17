@@ -30,8 +30,6 @@ def merge_raw_scan_table(df_raw_txt: pd.DataFrame, df_table_images: pd.DataFrame
               type=click.Path(exists=True, file_okay=False, resolve_path=True, path_type=Path))
 def main(output_dir: Path):
 
-    """ Chemins """
-
     raw_text_csv = output_dir / PATH_RAW_TEXT_CSV_FILE
     scan_tables_images_csv = output_dir / PATH_TABLE_DETECTED_CSV_FILE
     table_dataset_csv = output_dir / PATH_DATASET_CSV_FILE
