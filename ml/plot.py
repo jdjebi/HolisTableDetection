@@ -1,6 +1,9 @@
+from fitz import fitz
 from matplotlib import pyplot as plt
 import seaborn as sns
 from sklearn.metrics import roc_curve, auc
+
+from utils.typing_toolkit import StrPath
 
 
 def plot_dist_interest_table(train_set):
@@ -36,3 +39,10 @@ def plot_roc_curve(y_test, y_prob, save_path):
         plt.savefig(save_path)
     else:
         plt.show()
+
+
+def plot_pdf_page(path: StrPath, page: int, save_path: StrPath):
+    with fitz.open(path) as pdf_document:
+        page = pdf_document[int(page)]
+        pix = page.get_pixmap(dpi=200)
+        pix.save(save_path)

@@ -11,18 +11,19 @@ from sklearn.svm import LinearSVC
 
 from config.constants import ENCODING
 from ml.log import show_coef
-from ml.plot import plot_dist_interest_table, plot_roc_curve
+from ml.plot import plot_dist_interest_table, plot_roc_curve, plot_pdf_page
 from ml.preprocess_func import cleaning_pdf_interest
 from utils.utils import makedirs
 
 TEST_SIZE = 0.3
 RAMDOM_SATE = 42
 
-path = "data/temp/train_dataset/csv/table_dataset.csv"
+train_path = "data/temp/train_dataset/csv/table_dataset.csv"
 
 
+# TODO: Dans l'extraction, trouver un moyen pour préciser qu'une page contient à la fois du texte et des images (
+#  text_only: False)
 def train(train_data_path: Path):
-
     makedirs('results/table_classifier_models', exist_ok=True)
 
     print("# Entraînement")
@@ -88,18 +89,87 @@ def train(train_data_path: Path):
     plot_roc_curve(y_test, y_scores, "results/svm_plot_curve")
     show_coef(svm.coef_[0], features_names)
 
-    # Sauvegarde des modèles
-    print(f"\nSauvegarde des modèles...")
-    joblib.dump(lr, 'results/table_classifier_models/lr_model.pk')
+    # Sauvegarde
+    print(f"\nSauvegarde du vectoriseur...")
+    joblib.dump(tfidf_vector, 'results/table_classifier_models/tfidf_vector.pk')
+
+    print(f"Sauvegarde des modèles...")
+    joblib.dump(lr, 'results/table_classifier_models/lr_model.pkl')
     joblib.dump(rf, 'results/table_classifier_models/rf_model.pkl')
     joblib.dump(svm, 'results/table_classifier_models/svm_model.pkl')
+
+    print("Sauvegarde terminée! Dossier de sauvegarde results/table_classifier_models")
+
+
+def test(test_data_path: Path):
+    print("# Test")
+    print(f"Données : {test_data_path}\n")
+
+    # Chargement du modèle et du vectoriseur
+    print("Chargement du modèle...")
+    model = joblib.load('results/table_classifier_models/lr_model.pkl')
+    vectorizer = joblib.load('results/table_classifier_models/tfidf_vector.pk')
+
+    # Chargement des données
+    print("Chargement des données...")
+    test_df = pd.read_csv(test_data_path, sep=';', encoding=ENCODING, index_col=0)
+    test_df["idx"] = pd.Series(range(test_df.shape[0]))
+    test_set = test_df[['text']]
+
+    # Nettoyage des données
+    test_set['text'] = cleaning_pdf_interest(test_set, 'text')
+
+    # Pré-traitement
+    print("Pré-traitement...")
+    X = test_set['text'].tolist()
+    X = vectorizer.transform(X)
+
+    # Prédiction
+    print("Prédictions...")
+    y_pred = model.predict(X)
+    test_df['is_interest'] = y_pred
+
+    # Sauvegarde des résultats
+    print("Sauvegarde des résultats...")
+    test_df.to_csv('results/predictions.csv')
+
+    # Exemples
+    print("Plots des exemples de classification...")
+
+    makedirs(Path("results/samples"), remove_ok=True)
+
+    # Tableau scanné prédit comme intéressant
+    items_scan_interesting = test_df[(test_df.is_scan == True) & (test_df.is_interest == 1)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, f"results/samples/items_scan_interesting_{suffix}.jpg")
+
+    # Tableau non scanné prédit comme intéressant
+    items_scan_interesting = test_df[(test_df.is_scan == False) & (test_df.is_interest == 1)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, f"results/samples/items_raw_interesting_{suffix}.jpg")
+
+    # Tableau scanné prédit comme non intéressant
+    items_scan_interesting = test_df[(test_df.is_scan == True) & (test_df.is_interest == 0)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, f"results/samples/items_scan_not_interesting_{suffix}.jpg")
+
+    # Tableau non scanné prédit comme non intéressant
+    items_scan_interesting = test_df[(test_df.is_scan == False) & (test_df.is_interest == 0)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, f"results/samples/items_raw_not_interesting_{suffix}.jpg")
 
 
 def main(train_data_path: Path):
     makedirs("results")
 
-    train(train_data_path)
+    # train(train_data_path)
+
+    test("data/temp/test_dataset/csv/table_dataset.csv")
 
 
 if __name__ == "__main__":
-    main(path)
+    main(train_path)
