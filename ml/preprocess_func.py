@@ -1,5 +1,6 @@
 import re
 
+import pandas as pd
 from nltk import PorterStemmer, word_tokenize
 from nltk.corpus import stopwords
 
@@ -14,6 +15,7 @@ def clean_text(text):
     return cleaned_text
 
 
-def cleaning_pdf_interest(df, col_name):
-    cleaned_column = df[col_name].apply(clean_text)
-    return cleaned_column
+def cleaning_pdf_interest(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
+    df_copy = df.copy()
+    df_copy['text'] = df_copy[col_name].apply(clean_text)
+    return df_copy
