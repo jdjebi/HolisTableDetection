@@ -1,37 +1,33 @@
 from pathlib import Path
 
+import click
 import joblib
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.svm import LinearSVC
 
 from config.constants import ENCODING
-from ml.log import show_coef
-from ml.plot import plot_dist_interest_table, plot_roc_curve, plot_pdf_page
+from ml.constants import RAMDOM_SATE, TEST_SIZE, MODELS_DIR, PLOT_DIR
+from ml.models import train_lr_model, train_rf_model, train_svm_model
+from ml.plot import plot_dist_interest_table, plot_items_scan_interesting, plot_items_raw_interesting, \
+    plot_items_scan_not_interesting, plot_items_raw_not_interesting
 from ml.preprocess_func import cleaning_pdf_interest
 from utils.utils import makedirs
-
-TEST_SIZE = 0.3
-RAMDOM_SATE = 42
-
-train_path = "data/temp/train_dataset/csv/table_dataset.csv"
 
 
 # TODO: Dans l'extraction, trouver un moyen pour préciser qu'une page contient à la fois du texte et des images (
 #  text_only: False)
-def train(train_data_path: Path):
-    makedirs('results/table_classifier_models', exist_ok=True)
+def train(train_data_path: Path, output_dir: Path):
+    output_models_dir = output_dir / MODELS_DIR
+    output_plots_dir = output_dir / PLOT_DIR
+
+    makedirs(output_models_dir, exist_ok=True)
+    makedirs(output_plots_dir, exist_ok=True)
 
     print("# Entraînement")
-    print(f"Données : {train_data_path}\n")
 
     # Chargement des données
     train_df = pd.read_csv(train_data_path, delimiter=';', encoding=ENCODING)
-    train_df['interest_table'] = train_df['interest_table'].astype(int)
     train_set = train_df[['text', 'interest_table']]
 
     # Distribution de données par tableau d'intérêt
@@ -39,22 +35,15 @@ def train(train_data_path: Path):
 
     # Nettoyage des données
     print(f"Nettoyage des données...")
-    train_set_cleaned = train_set.copy()
-    train_set_cleaned['text'] = cleaning_pdf_interest(train_set_cleaned, 'text')
-
-    # Observation
-    n_words = len([word for line in train_set_cleaned["text"].tolist() for word in line.split()])
-    print(f"Nombre de mots: {n_words}")
+    train_set_cleaned = cleaning_pdf_interest(train_set, 'text')
 
     # Division des données
-    X = train_set_cleaned['text'].tolist()
-    y = train_set_cleaned['interest_table'].tolist()
+    X, y = train_set_cleaned['text'], train_set_cleaned['interest_table']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RAMDOM_SATE, stratify=y)
 
     # Vectorisation
-    tfidf_vector = TfidfVectorizer(stop_words='english', max_features=None, max_df=0.5, min_df=2, ngram_range=(1, 1))
-    X_train = tfidf_vector.fit_transform(X_train)
-    X_test = tfidf_vector.transform(X_test)
+    tfidf_vector = TfidfVectorizer(stop_words='english', max_df=0.5, min_df=2)
+    X_train, X_test = tfidf_vector.fit_transform(X_train), tfidf_vector.transform(X_test)
 
     features_names = tfidf_vector.get_feature_names_out()
     print(f"Quelques features : {features_names[:5]}")
@@ -63,52 +52,35 @@ def train(train_data_path: Path):
     print(f"\nEntraînement des modèles...")
 
     print("## LogisticRegression")
-    lr = LogisticRegression(random_state=RAMDOM_SATE)
-    lr = lr.fit(X_train, y_train)
-    y_pred = lr.predict(X_test)
-    print(classification_report(y_test, y_pred))
-    y_prob = lr.predict_proba(X_test)[:, 1]
-    plot_roc_curve(y_test, y_prob, "results/lr_plot_curve")
-    show_coef(lr.coef_[0], features_names)
+    lr = train_lr_model(X_train, y_train, X_test, y_test, features_names, output_dir)
 
     print("## RandomForestClassifier")
-    rf = RandomForestClassifier(min_samples_split=5, max_depth=10, random_state=RAMDOM_SATE)
-    rf = rf.fit(X_train, y_train)
-    y_pred2 = rf.predict(X_test)
-    print(classification_report(y_test, y_pred2))
-    y_prob = rf.predict_proba(X_test)[:, 1]
-    plot_roc_curve(y_test, y_prob, "results/rf_plot_curve")
-    show_coef(rf.feature_importances_, features_names)
+    rf = train_rf_model(X_train, y_train, X_test, y_test, features_names, output_dir)
 
     print("## LinearSVC")
-    svm = LinearSVC(random_state=42)
-    svm = svm.fit(X_train, y_train)
-    y_pred3 = svm.predict(X_test)
-    print(classification_report(y_test, y_pred3))
-    y_scores = svm.decision_function(X_test)
-    plot_roc_curve(y_test, y_scores, "results/svm_plot_curve")
-    show_coef(svm.coef_[0], features_names)
+    svm = train_svm_model(X_train, y_train, X_test, y_test, features_names, output_dir)
 
     # Sauvegarde
-    print(f"\nSauvegarde du vectoriseur...")
-    joblib.dump(tfidf_vector, 'results/table_classifier_models/tfidf_vector.pk')
+    print(f"\nSauvegarde du vectoriseur et des modèles...")
+    joblib.dump(tfidf_vector, output_models_dir / "tfidf_vector.pkl")
+    joblib.dump(lr, output_models_dir / "lr_model.pkl")
+    joblib.dump(rf, output_models_dir / "rf_model.pkl")
+    joblib.dump(svm, output_models_dir / "svm_model.pkl")
 
-    print(f"Sauvegarde des modèles...")
-    joblib.dump(lr, 'results/table_classifier_models/lr_model.pkl')
-    joblib.dump(rf, 'results/table_classifier_models/rf_model.pkl')
-    joblib.dump(svm, 'results/table_classifier_models/svm_model.pkl')
-
-    print("Sauvegarde terminée! Dossier de sauvegarde results/table_classifier_models")
+    print(f"Sauvegarde terminée! Dossier de sauvegarde {output_models_dir}")
 
 
-def test(test_data_path: Path):
+def test(test_data_path: Path, model_path: Path, vectorizer_path: Path, output_dir: Path):
     print("# Test")
-    print(f"Données : {test_data_path}\n")
+
+    output_samples_dir = output_dir / "samples"
+
+    makedirs(output_samples_dir, remove_ok=True)
 
     # Chargement du modèle et du vectoriseur
     print("Chargement du modèle...")
-    model = joblib.load('results/table_classifier_models/lr_model.pkl')
-    vectorizer = joblib.load('results/table_classifier_models/tfidf_vector.pk')
+    model = joblib.load(model_path)
+    vectorizer = joblib.load(vectorizer_path)
 
     # Chargement des données
     print("Chargement des données...")
@@ -117,17 +89,16 @@ def test(test_data_path: Path):
     test_set = test_df[['text']]
 
     # Nettoyage des données
+    print("Nettoyage...")
     test_set['text'] = cleaning_pdf_interest(test_set, 'text')
 
     # Pré-traitement
     print("Pré-traitement...")
-    X = test_set['text'].tolist()
-    X = vectorizer.transform(X)
+    X = vectorizer.transform(test_set['text'])
 
     # Prédiction
     print("Prédictions...")
-    y_pred = model.predict(X)
-    test_df['is_interest'] = y_pred
+    test_df['is_interest'] = model.predict(X)
 
     # Sauvegarde des résultats
     print("Sauvegarde des résultats...")
@@ -136,40 +107,52 @@ def test(test_data_path: Path):
     # Exemples
     print("Plots des exemples de classification...")
 
-    makedirs(Path("results/samples"), remove_ok=True)
-
     # Tableau scanné prédit comme intéressant
-    items_scan_interesting = test_df[(test_df.is_scan == True) & (test_df.is_interest == 1)]
-    item = items_scan_interesting.iloc[0, :]
-    suffix = f"{item.idx}_p_{item.page}"
-    plot_pdf_page(item.path, item.page, f"results/samples/items_scan_interesting_{suffix}.jpg")
+    plot_items_scan_interesting(test_df, output_samples_dir)
 
     # Tableau non scanné prédit comme intéressant
-    items_scan_interesting = test_df[(test_df.is_scan == False) & (test_df.is_interest == 1)]
-    item = items_scan_interesting.iloc[0, :]
-    suffix = f"{item.idx}_p_{item.page}"
-    plot_pdf_page(item.path, item.page, f"results/samples/items_raw_interesting_{suffix}.jpg")
+    plot_items_raw_interesting(test_df, output_samples_dir)
 
     # Tableau scanné prédit comme non intéressant
-    items_scan_interesting = test_df[(test_df.is_scan == True) & (test_df.is_interest == 0)]
-    item = items_scan_interesting.iloc[0, :]
-    suffix = f"{item.idx}_p_{item.page}"
-    plot_pdf_page(item.path, item.page, f"results/samples/items_scan_not_interesting_{suffix}.jpg")
+    plot_items_scan_not_interesting(test_df, output_samples_dir)
 
     # Tableau non scanné prédit comme non intéressant
-    items_scan_interesting = test_df[(test_df.is_scan == False) & (test_df.is_interest == 0)]
-    item = items_scan_interesting.iloc[0, :]
-    suffix = f"{item.idx}_p_{item.page}"
-    plot_pdf_page(item.path, item.page, f"results/samples/items_raw_not_interesting_{suffix}.jpg")
+    plot_items_raw_not_interesting(test_df, output_samples_dir)
+
+    print(f"Résultats enregistrés dans : {output_dir}")
 
 
-def main(train_data_path: Path):
+@click.command()
+@click.option("-a", "--action",
+              required=True,
+              type=click.Choice(['train', 'test']),
+              help="Action à effectuer. Entraînement (train) ou test (test)")
+@click.option("-d", "--data-file",
+              required=True,
+              type=click.Path(exists=True, file_okay=True, path_type=Path),
+              help="Chemin vers le fichier csv des données")
+@click.option("-o", "--output-dir",
+              type=click.Path(dir_okay=True, path_type=Path),
+              default="results",
+              help="Dossier des résultats")
+@click.option("-m", "--model",
+              type=click.Path(exists=True, file_okay=True, path_type=Path),
+              help="Chemin vers le fichier du modèle (action=test)")
+@click.option("-v", "--vectorizer",
+              type=click.Path(exists=True, file_okay=True, path_type=Path),
+              help="Chemin vers le fichier du vectoriseur (action=test)")
+def main(action: str, data_file: Path, output_dir: Path, model: Path, vectorizer: Path):
     makedirs("results")
 
-    # train(train_data_path)
-
-    test("data/temp/test_dataset/csv/table_dataset.csv")
+    if action == "train":
+        train(data_file, output_dir)
+    else:
+        if model is None:
+            print("Error: Missing option '-m' / '--model'.")
+        elif vectorizer is None:
+            print("Error: Missing option '-v' / '--vectorizer'.")
+        test(data_file, model, vectorizer, output_dir)
 
 
 if __name__ == "__main__":
-    main(train_path)
+    main()
