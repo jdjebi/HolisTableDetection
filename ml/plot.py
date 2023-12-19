@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import pandas as pd
 from fitz import fitz
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -46,3 +49,31 @@ def plot_pdf_page(path: StrPath, page: int, save_path: StrPath):
         page = pdf_document[int(page)]
         pix = page.get_pixmap(dpi=200)
         pix.save(save_path)
+
+
+def plot_items_scan_interesting(data: pd.DataFrame, save_base_path: Path):
+    items_scan_interesting = data[(data.is_scan == True) & (data.is_interest == 1)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, save_base_path / f"items_scan_interesting_{suffix}.jpg")
+
+
+def plot_items_raw_interesting(data: pd.DataFrame, save_base_path: Path):
+    items_scan_interesting = data[(data.is_scan == False) & (data.is_interest == 1)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, save_base_path / f"items_raw_interesting_{suffix}.jpg")
+
+
+def plot_items_scan_not_interesting(data: pd.DataFrame, save_base_path: Path):
+    items_scan_interesting = data[(data.is_scan == True) & (data.is_interest == 0)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, save_base_path / f"items_scan_not_interesting_{suffix}.jpg")
+
+
+def plot_items_raw_not_interesting(data: pd.DataFrame, save_base_path: Path):
+    items_scan_interesting = data[(data.is_scan == False) & (data.is_interest == 0)]
+    item = items_scan_interesting.iloc[0, :]
+    suffix = f"{item.idx}_p_{item.page}"
+    plot_pdf_page(item.path, item.page, save_base_path / f"items_raw_not_interesting_{suffix}.jpg")
